@@ -89,9 +89,18 @@
                     <div>
                         <label for="voiceSelect" class="block text-xs font-medium text-slate-400 mb-1.5">Голос диктора</label>
                         <select id="voiceSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                            <option value="" disabled selected>Загрузка доступных голосов...</option>
-                        </select>
-                    </div>
+                            <optgroup label="Серверные голоса">
+                                <option value="aidar" selected>Aidar (Мужской)</option>
+                                <option value="baya">Baya (Женский)</option>
+                                <option value="kseniya">Kseniya (Женский)</option>
+                                <option value="xenia">Xenia (Женский)</option>
+                                <option value="eugene">Eugene (Мужской)</option>
+                                <option value="random">Random (Случайный)</option>
+                            </optgroup>
+                            <optgroup label="Системные голоса (Web Speech)" id="browserVoices">
+                                <option value="" disabled>Загрузка...</option>
+                            </optgroup>
+                        </select>                    </div>
                 </div>
 
                 <!-- Custom Voice ID (for custom server mode) -->
@@ -272,9 +281,10 @@
 
         function filterVoices() {
             const langFilter = document.getElementById('langFilter').value;
-            const voiceSelect = document.getElementById('voiceSelect');
+            const browserGroup = document.getElementById('browserVoices');
             
-            voiceSelect.innerHTML = '';
+            if (!browserGroup) return;
+            browserGroup.innerHTML = ''; // Очищаем только системные голоса
 
             let filteredVoices = voices;
             if (langFilter !== 'all') {
@@ -285,23 +295,19 @@
                 const opt = document.createElement('option');
                 opt.value = "";
                 opt.textContent = "Голоса не найдены для выбранного фильтра";
-                voiceSelect.appendChild(opt);
+                browserGroup.appendChild(opt);
                 return;
             }
 
-            filteredVoices.forEach((voice, index) => {
+            filteredVoices.forEach((voice) => {
                 const option = document.createElement('option');
                 option.value = voice.name;
                 option.textContent = `${voice.name} (${voice.lang})${voice.default ? ' — [По умолчанию]' : ''}`;
                 
-                if (voice.default && langFilter === 'all') {
-                    option.selected = true;
-                }
-                
-                voiceSelect.appendChild(option);
+                // Автоматически не выбираем браузерный голос, так как по умолчанию выбран серверный
+                browserGroup.appendChild(option);
             });
         }
-
         // Switch Engine Mode
         function setEngineMode(mode) {
             engineMode = mode;
