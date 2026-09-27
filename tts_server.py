@@ -19,7 +19,7 @@ app.add_middleware(
 )
 
 # 1. Загрузка локальной нейросети Silero TTS
-device = torch.device('cpu') 
+device = torch.device('cuda') 
 model, _ = torch.hub.load(
     repo_or_dir='snakers4/silero-models',
     model='silero_tts',  
