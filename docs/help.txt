@@ -1,7 +1,12 @@
- uvicorn tts_server:app --host 0.0.0.0 --port 8000
-
+uvicorn tts_server:app --host 0.0.0.0 --port 8000
+uvicorn tts_server:app --host 0.0.0.0 --port 8000 --reload --log-level debug
 
  pip install --force-reinstall transformers torch torchaudio
  pip install "numpy<2" scipy soundfile --force-reinstall
  pip install --upgrade Pillow
  python3 -c 'from transformers import pipeline; print("Импорт работает!")'
+
+
+ python -m app.main
+
+ uvicorn app.main:app --host 0.0.0.0 --port 8000
