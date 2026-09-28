@@ -5,24 +5,27 @@ from fastapi.responses import HTMLResponse
 from app.services.audio import generate_audio_bytes, send_audio_to_esp32, resolve_language
 from app.core.config import BASE_DIR
 
-logger = logging.getLogger("TTS_Server")
+# Уникальный логгер для роутов API
+logger = logging.getLogger("TTS_Routes")
 router = APIRouter()
-
 
 @router.get("/", response_class=HTMLResponse)
 async def serve_tester_page():
-    """Отдает HTML-страницу тестирования напрямую из корня сервера"""
+    """Отдает HTML-страницу тестирования из папки frontend"""
     logger.info("[ENTER] serve_tester_page | params: none")
     try:
         html_path = os.path.join(BASE_DIR, "frontend", "tts_tester.html")
         with open(html_path, "r", encoding="utf-8") as f:
             content = f.read()
-            logger.info("[EXIT] serve_tester_page | return: tts_tester.html loaded successfully")
+            logger.info("[EXIT] serve_tester_page | return: frontend/tts_tester.html loaded successfully")
             return content
     except FileNotFoundError as e:
-        logger.warning("Файл tts_tester.html не найден при обращении к корню.")
+        logger.warning("Файл frontend/tts_tester.html не найден при обращении к корню.")
         logger.error(f"[EXIT ERROR] serve_tester_page | error: {e}")
-        return HTMLResponse(content="<h3>Файл tts_tester.html не найден.</h3>", status_code=404)
+        return HTMLResponse(content="<h3>Файл tts_tester.html не найден в папке frontend/.</h3>", status_code=404)
+    except Exception as e:
+        logger.error(f"[EXIT ERROR] serve_tester_page | error: {e}")
+        raise e
 
 @router.post("/speak_stream")
 async def speak_stream(request: Request):
@@ -32,21 +35,21 @@ async def speak_stream(request: Request):
     """
     logger.info(f"[ENTER] speak_stream | params: client={request.client}")
     try:
-        data = await request.json()
-        text = data.get("input") or data.get("text", "")
-        speaker = data.get("voice") or data.get("speaker", "ru")
-    except Exception:
-        body = await request.body()
-        text = body.decode('utf-8')
-        speaker = 'ru'
+        try:
+            data = await request.json()
+            text = data.get("input") or data.get("text", "")
+            speaker = data.get("voice") or data.get("speaker", "ru")
+        except Exception:
+            body = await request.body()
+            text = body.decode('utf-8')
+            speaker = 'ru'
 
-    if not text:
-        logger.warning("Получен пустой текст на эндпоинт /speak_stream")
-        res = Response(content="Пустой текст", status_code=400)
-        logger.info("[EXIT] speak_stream | return: Response(400, 'Пустой текст')")
-        return res
+        if not text:
+            logger.warning("Получен пустой текст на эндпоинт /speak_stream")
+            res = Response(content="Пустой текст", status_code=400)
+            logger.info("[EXIT] speak_stream | return: Response(400, 'Пустой текст')")
+            return res
 
-    try:
         lang = resolve_language(speaker)
         audio_bytes, _ = generate_audio_bytes(text, lang)
         res = Response(content=audio_bytes, media_type="audio/wav")
@@ -66,21 +69,21 @@ async def speak_to_door(request: Request, background_tasks: BackgroundTasks):
     """
     logger.info(f"[ENTER] speak_to_door | params: client={request.client}")
     try:
-        data = await request.json()
-        text = data.get("input") or data.get("text", "")
-        speaker = data.get("voice") or data.get("speaker", "ru")
-    except Exception:
-        body = await request.body()
-        text = body.decode('utf-8')
-        speaker = 'ru'
+        try:
+            data = await request.json()
+            text = data.get("input") or data.get("text", "")
+            speaker = data.get("voice") or data.get("speaker", "ru")
+        except Exception:
+            body = await request.body()
+            text = body.decode('utf-8')
+            speaker = 'ru'
 
-    if not text:
-        logger.warning("Получен пустой текст на эндпоинт /speak")
-        res = {"status": "error", "message": "Пустой текст"}
-        logger.info(f"[EXIT] speak_to_door | return: {res}")
-        return res
+        if not text:
+            logger.warning("Получен пустой текст на эндпоинт /speak")
+            res = {"status": "error", "message": "Пустой текст"}
+            logger.info(f"[EXIT] speak_to_door | return: {res}")
+            return res
 
-    try:
         lang = resolve_language(speaker)
         audio_bytes, _ = generate_audio_bytes(text, lang)
         

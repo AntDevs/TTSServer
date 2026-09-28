@@ -6,33 +6,75 @@ import numpy as np
 import requests
 import logging
 from transformers import pipeline
+from transformers.tokenization_utils_base import BatchEncoding
 from app.core.config import config
 
+# Уникальный логгер для модуля обработки аудио
 logger = logging.getLogger("TTS_Audio")
+
+# Исправленный патч: не меняет dtype для индексов токенов (input_ids), оставляя их Long/Int
+old_batch_encoding_to = BatchEncoding.to
+def patched_batch_encoding_to(self, device=None, *, non_blocking=False, dtype=None, **kwargs):
+    logger.info(f"[ENTER] patched_batch_encoding_to | params: device={device}, dtype={dtype}")
+    try:
+        if dtype is not None:
+            for k, v in self.items():
+                if hasattr(v, "to"):
+                    # Индексы токенов должны оставаться целочисленными (Long/Int), иначе ломается embedding слой
+                    if k in ("input_ids", "token_type_ids") or (isinstance(v, torch.Tensor) and not torch.is_floating_point(v)):
+                        if device is not None:
+                            self[k] = v.to(device=device, non_blocking=non_blocking)
+                    else:
+                        if device is not None:
+                            self[k] = v.to(device=device, dtype=dtype, non_blocking=non_blocking)
+                        else:
+                            self[k] = v.to(dtype=dtype)
+            logger.info(f"[EXIT] patched_batch_encoding_to | return: self (patched safely)")
+            return self
+        if device is not None:
+            res = old_batch_encoding_to(self, device, non_blocking=non_blocking, **kwargs)
+            logger.info(f"[EXIT] patched_batch_encoding_to | return: old_batch_encoding_to result")
+            return res
+        logger.info(f"[EXIT] patched_batch_encoding_to | return: self")
+        return self
+    except Exception as e:
+        logger.error(f"[EXIT ERROR] patched_batch_encoding_to | error: {e}")
+        raise e
+
+BatchEncoding.to = patched_batch_encoding_to
 
 # Запрещаем Hugging Face обращаться к интернету (полный оффлайн-режим)
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 
-# 1. Проверка доступности видеокарты GTX 1060 (CUDA)
+# 1. Проверка доступности и выполнения ядер на видеокарте GTX 1060 (CUDA)
 if not torch.cuda.is_available():
     logger.critical("CUDA недоступна! Вычисления на процессоре вызовут задержку.")
     raise SystemError("CUDA недоступна! Вычисления на процессоре вызовут задержку.")
 
-logger.info(f"Запуск Meta MMS на видеокарте: {torch.cuda.get_device_name(0)}")
+device = -1
+try:
+    # Проверка возможности выполнения Cuda-ядер на GPU
+    test_tensor = torch.zeros(1, device="cuda")
+    _ = test_tensor + 1
+    device = 0
+    logger.info(f"Запуск Meta MMS на видеокарте: {torch.cuda.get_device_name(0)}")
+except Exception as e:
+    logger.warning(f"CUDA ядра недоступны для текущей версии PyTorch ({e}). Переключение на CPU (-1).")
+    device = -1
 
 # 2. Загрузка языковых моделей Meta MMS из локального кэша
 tts_pipes = {}
 
 try:
     logger.info(f"Загрузка модели для русского ({config.MODEL_RU})...")
-    tts_pipes['ru'] = pipeline("text-to-speech", model=config.MODEL_RU, device=0)
+    tts_pipes['ru'] = pipeline("text-to-speech", model=config.MODEL_RU, device=device)
     
     logger.info(f"Загрузка модели для английского ({config.MODEL_EN})...")
-    tts_pipes['en'] = pipeline("text-to-speech", model=config.MODEL_EN, device=0)
+    tts_pipes['en'] = pipeline("text-to-speech", model=config.MODEL_EN, device=device)
     
     logger.info(f"Загрузка модели для иврита ({config.MODEL_HE})...")
-    tts_pipes['he'] = pipeline("text-to-speech", model=config.MODEL_HE, device=0)
+    tts_pipes['he'] = pipeline("text-to-speech", model=config.MODEL_HE, device=device)
     
     logger.info("Все языковые модели Meta MMS (RU, EN, HE) успешно загружены!")
 except Exception as e:
@@ -106,9 +148,12 @@ def send_audio_to_esp32(audio_bytes):
         if response.status_code == 200:
             logger.info("Аудио успешно отправлено на ESP32.")
             logger.info(f"[EXIT] send_audio_to_esp32 | return: status_code={response.status_code}")
+            return response.status_code
         else:
             logger.error(f"Ошибка при отправке на ESP32: статус {response.status_code}")
             logger.info(f"[EXIT] send_audio_to_esp32 | return: status_code={response.status_code}")
+            return response.status_code
     except Exception as e:
         logger.error(f"Не удалось отправить звук на дверной динамик: {e}")
         logger.error(f"[EXIT ERROR] send_audio_to_esp32 | error: {e}")
+        raise e
