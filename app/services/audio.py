@@ -8,7 +8,7 @@ import logging
 from transformers import pipeline
 from app.core.config import config
 
-logger = logging.getLogger("TTS_Server")
+logger = logging.getLogger("TTS_Audio")
 
 # Запрещаем Hugging Face обращаться к интернету (полный оффлайн-режим)
 os.environ["TRANSFORMERS_OFFLINE"] = "1"

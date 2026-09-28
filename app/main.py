@@ -27,6 +27,21 @@ app.add_middleware(
 # Подключаем роуты из папки api
 app.include_router(router)
 
+# Событие запуска FastAPI — гарантированно выполнится при старте сервера
+@app.on_event("startup")
+async def startup_event():
+    logger.info(f"Запуск startup веб-сервера Uvicorn на {config.HOST}:{config.PORT}...")
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Uvicorn требует строковое название модуля для режима reload
+    if config.RELOAD:
+        uvicorn.run(config.APP_MODULE, host=config.HOST, port=config.PORT, reload=config.RELOAD, log_level=config.LOG_LEVEL_STR.lower())
+    else:
+        uvicorn.run(app, host=config.HOST, port=config.PORT, reload=config.RELOAD, log_level=config.LOG_LEVEL_STR.lower())
+
+
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"Запуск веб-сервера Uvicorn на {config.HOST}:{config.PORT}...")

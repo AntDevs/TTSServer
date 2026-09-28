@@ -8,12 +8,13 @@ from app.core.config import BASE_DIR
 logger = logging.getLogger("TTS_Server")
 router = APIRouter()
 
+
 @router.get("/", response_class=HTMLResponse)
 async def serve_tester_page():
     """Отдает HTML-страницу тестирования напрямую из корня сервера"""
     logger.info("[ENTER] serve_tester_page | params: none")
     try:
-        html_path = os.path.join(BASE_DIR, "tts_tester.html")
+        html_path = os.path.join(BASE_DIR, "frontend", "tts_tester.html")
         with open(html_path, "r", encoding="utf-8") as f:
             content = f.read()
             logger.info("[EXIT] serve_tester_page | return: tts_tester.html loaded successfully")

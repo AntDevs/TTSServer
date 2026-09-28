@@ -2,7 +2,7 @@ import configparser
 import logging
 import os
 
-# Вычисляем путь к корню проекта (на 3 уровня выше: app/core/config.py -> app/core -> app -> project_root)
+# Вычисляем путь к корню проекта
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.ini")
 
@@ -30,5 +30,14 @@ class ProjectConfig:
         # Utils
         self.NUMERIC_LOG_LEVEL = getattr(logging, self.LOG_LEVEL_STR, logging.INFO)
 
-# Создаем глобальный объект конфигурации (синглтон), который будем импортировать в другие файлы
+# Создаем глобальный объект конфигурации (синглтон)
 config = ProjectConfig()
+
+# Настройка встроенного логгера Python происходит здесь, 
+# чтобы перехватывать логи с самых первых секунд запуска (включая загрузку моделей).
+logging.basicConfig(
+    level=config.NUMERIC_LOG_LEVEL,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    force=True # Принудительно применяет конфигурацию, отменяя перехват Uvicorn
+)
