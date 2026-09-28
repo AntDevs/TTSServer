@@ -10,3 +10,34 @@ uvicorn tts_server:app --host 0.0.0.0 --port 8000 --reload --log-level debug
  python -m app.main
 
  uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+// *********** Сборка образа *************//
+ docker build -t tts-door-server .
+
+sudo docker images
+
+sudo docker ps -a --filter "name=docker.io/library/tts-door-server"
+
+
+// *********** Запуск контейнера с поддержкой GPU (--gpus all) *************//
+sudo docker rm -f tts-server
+sudo docker run -d \
+  --name tts-server \
+  --gpus all \
+  -p 8000:8000 \
+  --restart unless-stopped \
+  tts-door-server
+  
+
+  //********************* Настроить Docker для работы с GPU ****************/
+
+//Добавление репозитория NVIDIA и установка пакета
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+  && curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+sudo apt-get update
+sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
