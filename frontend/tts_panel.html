@@ -1,0 +1,184 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+    <!-- Main Controls & Input (2 columns) -->
+    <section class="lg:col-span-2 space-y-6">
+        
+        <!-- Text Input Box -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-3">
+                <label for="ttsText" class="font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-align-left text-indigo-400"></i> Текст для озвучивания
+                </label>
+                <span id="charCount" class="text-xs text-slate-400">0 символов</span>
+            </div>
+            
+            <textarea id="ttsText" rows="5" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-y text-sm leading-relaxed" placeholder="Введите текст..."></textarea>
+            
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+                <span class="text-xs text-slate-400">Пресеты:</span>
+                <button type="button" onclick="setPreset('ru_short')" class="text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-600 transition">🇷🇺 Короткая фраза</button>
+                <button type="button" onclick="setPreset('ru_long')" class="text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-600 transition">🇷🇺 Длинный текст</button>
+                <button type="button" onclick="setPreset('en_sample')" class="text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-600 transition">🇬🇧 English Sample</button>
+                <button type="button" onclick="setPreset('he_sample')" class="text-xs bg-slate-700/50 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded border border-slate-600 transition">🇮🇱 HEB Sample</button>
+            </div>
+        </div>
+
+        <!-- Voice Selection & Audio Controls -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-5">
+            <h2 class="font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                <i class="fa-solid fa-microphone-lines text-indigo-400"></i> Выбор голоса и Параметры
+            </h2>
+            
+            <!-- Voice Selector Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Language Filter -->
+                <div>
+                    <label for="langFilter" class="block text-xs font-medium text-slate-400 mb-1.5">Фильтр по языку</label>
+                    <select id="langFilter" onchange="filterVoices()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">Все языки</option>
+                        <option value="ru" selected>Русский (ru)</option>
+                        <option value="en">English (en)</option>
+                        <option value="he">Иврит (he)</option>
+                    </select>
+                </div>
+
+                <!-- Voice Dropdown Select -->
+                <div>
+                    <label for="voiceSelect" class="block text-xs font-medium text-slate-400 mb-1.5">Голос диктора</label>
+                    <select id="voiceSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <optgroup label="Серверные голоса">
+                            <option value="aidar" selected>Aidar (Мужской)</option>
+                            <option value="baya">Baya (Женский)</option>
+                            <option value="kseniya">Kseniya (Женский)</option>
+                            <option value="xenia">Xenia (Женский)</option>
+                            <option value="eugene">Eugene (Мужской)</option>
+                            <option value="random">Random (Случайный)</option>
+                        </optgroup>
+                        <optgroup label="Иврит / עברית (Meta MMS)">
+                            <option value="hebrew">Hebrew Voice (עברית)</option>
+                        </optgroup>
+                        <optgroup label="Системные голоса (Web Speech)" id="browserVoices">
+                            <option value="" disabled>Загрузка...</option>
+                        </optgroup>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Custom Voice ID -->
+            <div id="customVoiceContainer" class="hidden">
+                <label for="customVoiceInput" class="block text-xs font-medium text-slate-400 mb-1.5">ID Голоса (для внешнего сервера)</label>
+                <input type="text" id="customVoiceInput" placeholder="например, alloy, echo, fable, onyx, nova, shimmer или silero_ru" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+
+            <!-- Sliders for Rate, Pitch, Volume -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <!-- Speed -->
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/40">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Скорость</span>
+                        <span id="rateValue" class="font-mono text-indigo-400">1.0x</span>
+                    </div>
+                    <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1" oninput="document.getElementById('rateValue').textContent = this.value + 'x'" class="w-full accent-indigo-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Pitch -->
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/40">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Высота тона</span>
+                        <span id="pitchValue" class="font-mono text-indigo-400">1.0</span>
+                    </div>
+                    <input type="range" id="pitch" min="0.5" max="1.5" step="0.1" value="1" oninput="document.getElementById('pitchValue').textContent = this.value" class="w-full accent-indigo-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+
+                <!-- Volume -->
+                <div class="bg-slate-900/50 p-3 rounded-lg border border-slate-700/40">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span class="text-slate-400">Громкость</span>
+                        <span id="volumeValue" class="font-mono text-indigo-400">100%</span>
+                    </div>
+                    <input type="range" id="volume" min="0" max="1" step="0.05" value="1" oninput="document.getElementById('volumeValue').textContent = Math.round(this.value * 100) + '%'" class="w-full accent-indigo-500 h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                </div>
+            </div>
+
+            <!-- Playback Buttons -->
+            <div class="flex flex-wrap items-center gap-3 pt-2">
+                <button id="btnPlay" onclick="speakText()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition">
+                    <i class="fa-solid fa-play"></i> Озвучить
+                </button>
+                <button id="btnPause" onclick="pauseSpeech()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-pause"></i> Пауза
+                </button>
+                <button id="btnStop" onclick="stopSpeech()" class="bg-rose-600/80 hover:bg-rose-600 text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-stop"></i> Стоп
+                </button>
+            </div>
+
+            <!-- Visualizer -->
+            <div class="bg-slate-950 rounded-lg p-4 border border-slate-800 flex items-center justify-center gap-1 h-16 overflow-hidden" id="visualizer">
+                <div class="waveform-bar w-1.5 bg-indigo-500/40 rounded-full h-2 transition-all duration-100"></div>
+                <div class="waveform-bar w-1.5 bg-indigo-500/40 rounded-full h-3 transition-all duration-100"></div>
+                <div class="waveform-bar w-1.5 bg-indigo-500/40 rounded-full h-5 transition-all duration-100"></div>
+                <div class="waveform-bar w-1.5 bg-indigo-500/40 rounded-full h-2 transition-all duration-100"></div>
+                <div class="waveform-bar w-1.5 bg-indigo-500/40 rounded-full h-4 transition-all duration-100"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Sidebar Options & API Server Settings -->
+    <section class="space-y-6">
+        
+        <!-- Mode & Server Settings -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-4">
+            <h2 class="font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                <i class="fa-solid fa-sliders text-indigo-400"></i> Режим синтеза
+            </h2>
+
+            <!-- Mode Select -->
+            <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1.5">Движок / Провайдер</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" id="modeBrowserBtn" onclick="setEngineMode('browser')" class="py-2 px-3 text-xs font-medium rounded-lg border border-indigo-500 bg-indigo-600/20 text-indigo-300 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-globe"></i> Web Speech
+                    </button>
+                    <button type="button" id="modeServerBtn" onclick="setEngineMode('server')" class="py-2 px-3 text-xs font-medium rounded-lg border border-slate-700 bg-slate-900 text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-server"></i> REST API
+                    </button>
+                </div>
+            </div>
+
+            <!-- Server Config -->
+            <div id="serverConfigSection" class="space-y-3 hidden pt-2 border-t border-slate-700/50">
+                <div>
+                    <label for="serverUrl" class="block text-xs font-medium text-slate-400 mb-1">URL Сервера TTS</label>
+                    <input type="url" id="serverUrl" value="http://localhost:8000/speak_stream" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono">
+                </div>
+                <div>
+                    <label for="apiKey" class="block text-xs font-medium text-slate-400 mb-1">API Key (необязательно)</label>
+                    <input type="password" id="apiKey" placeholder="Bearer token..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono">
+                </div>
+                <div>
+                    <label for="audioFormat" class="block text-xs font-medium text-slate-400 mb-1">Формат ответа</label>
+                    <select id="audioFormat" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500">
+                        <option value="mp3">MP3</option>
+                        <option value="wav">WAV</option>
+                        <option value="ogg">OGG</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> История запусков
+                </h2>
+                <button onclick="clearHistory('historyList')" class="text-xs text-slate-400 hover:text-rose-400 transition">Очистить</button>
+            </div>
+            <div id="historyList" class="space-y-2 max-h-56 overflow-y-auto pr-1 text-xs">
+                <p class="text-slate-500 text-center py-4">История пуста</p>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- Audio Element for API responses -->
+<audio id="audioPlayer" class="hidden"></audio>

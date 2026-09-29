@@ -45,7 +45,7 @@ config = ProjectConfig()
 # Настройка встроенного логгера Python происходит здесь
 logging.basicConfig(
     level=config.NUMERIC_LOG_LEVEL,
-    format="%(asctime)s [%(levelname)s] %(message)s",
+    format="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",    
     datefmt="%Y-%m-%d %H:%M:%S",
     force=True
 )

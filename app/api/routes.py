@@ -1,7 +1,6 @@
 import os
 import logging
 from fastapi import APIRouter, Request, Response, BackgroundTasks
-from fastapi.responses import HTMLResponse
 from app.services.audio import generate_audio_bytes, send_audio_to_esp32, resolve_language
 from app.core.config import BASE_DIR
 
@@ -9,23 +8,8 @@ from app.core.config import BASE_DIR
 logger = logging.getLogger("TTS_Routes")
 router = APIRouter()
 
-@router.get("/", response_class=HTMLResponse)
-async def serve_tester_page():
-    """Отдает HTML-страницу тестирования из папки frontend"""
-    logger.info("[ENTER] serve_tester_page | params: none")
-    try:
-        html_path = os.path.join(BASE_DIR, "frontend", "tts_tester.html")
-        with open(html_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            logger.info("[EXIT] serve_tester_page | return: frontend/tts_tester.html loaded successfully")
-            return content
-    except FileNotFoundError as e:
-        logger.warning("Файл frontend/tts_tester.html не найден при обращении к корню.")
-        logger.error(f"[EXIT ERROR] serve_tester_page | error: {e}")
-        return HTMLResponse(content="<h3>Файл tts_tester.html не найден в папке frontend/.</h3>", status_code=404)
-    except Exception as e:
-        logger.error(f"[EXIT ERROR] serve_tester_page | error: {e}")
-        raise e
+# ЭНДПОИНТ serve_tester_page УДАЛЕН.
+# Раздачей статики (html, css, js) теперь управляет StaticFiles в app/main.py
 
 @router.post("/speak_stream")
 async def speak_stream(request: Request):

@@ -27,6 +27,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.pyc
 
 # Настройки pip (например, логи ошибок)
 pip-log.txt
