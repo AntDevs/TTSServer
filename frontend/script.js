@@ -46,7 +46,7 @@ function openTab(tabName) {
     }
 
     const panelContainer = document.getElementById('panel-content');
-    const fileName = tabName === 'tts' ? 'tts_panel_2.html' : 'stt_panel.html';
+    const fileName = tabName === 'tts' ? 'tts_panel.html' : 'stt_panel.html';
     
     fetch(fileName)
         .then(response => {
