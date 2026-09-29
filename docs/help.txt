@@ -12,7 +12,15 @@ uvicorn tts_server:app --host 0.0.0.0 --port 8000 --reload --log-level debug
  uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 // *********** Сборка образа *************//
- docker build -t tts-door-server .
+sudo docker stop tts-server
+sudo docker rm tts-server
+
+sudo docker compose down
+sudo docker compose build --no-cache
+sudo docker compose up -d
+
+docker build --no-cache -t tts-door-server .
+
 
 sudo docker images
 

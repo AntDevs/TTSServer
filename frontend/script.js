@@ -8,10 +8,13 @@ const presets = {
 };
 
 // Глобальные переменные для Микрофона и Браузерного TTS
-let mediaRecorder;
-let audioChunks = [];
 let sttAudioBlob = null;
+let currentSttMode = 'file';
+let currentWavBlob = null;
+let mediaRecorder = null;
+let audioChunks = [];
 let isRecording = false;
+
 
 let synth = window.speechSynthesis;
 let voices = [];
@@ -375,6 +378,7 @@ function handleSttFileSelect(event) {
     }
 }
 
+// В функции toggleRecording обязательно проверяем наличие данных
 async function toggleRecording() {
     console.log(`[ENTER] toggleRecording | params: isRecording=${isRecording}`);
     const btn = document.getElementById('btnRecord');
@@ -384,25 +388,37 @@ async function toggleRecording() {
     if (!isRecording) {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
+            
+            // Выбираем лучший поддерживаемый формат браузером
+            let options = {};
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                options = { mimeType: 'audio/webm;codecs=opus' };
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                options = { mimeType: 'audio/ogg;codecs=opus' };
+            }
+
+            mediaRecorder = new MediaRecorder(stream, options);
             audioChunks = [];
 
             mediaRecorder.ondataavailable = e => {
-                if(e.data.size > 0) audioChunks.push(e.data);
+                if (e.data && e.data.size > 0) audioChunks.push(e.data);
             };
 
             mediaRecorder.onstop = () => {
-                sttAudioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                sttAudioBlob = new Blob(audioChunks, { type: mimeType });
+                
                 const previewAudio = document.getElementById('sttPreviewAudio');
-                if(previewAudio) previewAudio.src = URL.createObjectURL(sttAudioBlob);
+                if (previewAudio) previewAudio.src = URL.createObjectURL(sttAudioBlob);
                 const previewContainer = document.getElementById('sttPreviewContainer');
-                if(previewContainer) previewContainer.classList.remove('hidden');
+                if (previewContainer) previewContainer.classList.remove('hidden');
             };
 
-            mediaRecorder.start();
+            // Запрашиваем чанки каждые 250 мс для стабильного формирования файла
+            mediaRecorder.start(250);
             isRecording = true;
             
-            if(btn && icon && statusText) {
+            if (btn && icon && statusText) {
                 btn.classList.replace('bg-rose-600/20', 'bg-rose-600');
                 btn.classList.replace('text-rose-500', 'text-white');
                 btn.classList.add('animate-pulse');
@@ -411,7 +427,6 @@ async function toggleRecording() {
                 statusText.classList.replace('text-slate-400', 'text-rose-400');
             }
             updateStatus('Запись микрофона...', 'error');
-            
             console.log("[EXIT] toggleRecording | return: recording started");
         } catch (error) {
             console.error(`[EXIT ERROR] toggleRecording | error: ${error.message}`);
@@ -423,7 +438,7 @@ async function toggleRecording() {
             mediaRecorder.stream.getTracks().forEach(track => track.stop());
             isRecording = false;
             
-            if(btn && icon && statusText) {
+            if (btn && icon && statusText) {
                 btn.classList.replace('bg-rose-600', 'bg-rose-600/20');
                 btn.classList.replace('text-white', 'text-rose-500');
                 btn.classList.remove('animate-pulse');
@@ -432,11 +447,80 @@ async function toggleRecording() {
                 statusText.classList.replace('text-rose-400', 'text-emerald-400');
             }
             updateStatus('Готов к работе', 'ready');
-
             console.log("[EXIT] toggleRecording | return: recording stopped");
         } catch (error) {
             console.error(`[EXIT ERROR] toggleRecording | error: ${error.message}`);
         }
+    }
+}
+
+async function recognizeAudio() {
+    console.log("[ENTER] recognizeAudio | params: none");
+    if (!sttAudioBlob) {
+        alert("Пожалуйста, выберите файл или запишите аудио с микрофона.");
+        console.log("[EXIT ERROR] recognizeAudio | error: no audio data");
+        return;
+    }
+
+    // Проверка на минимальный размер файла (меньше 1 КБ — пустая или поврежденная запись)
+    if (sttAudioBlob.size < 1000) {
+        alert("Аудиозапись слишком короткая или пустая. Запишите звук дольше (минимум 1 секунда).");
+        console.log(`[EXIT ERROR] recognizeAudio | error: blob size too small (${sttAudioBlob.size} bytes)`);
+        return;
+    }
+
+    const urlElem = document.getElementById('sttUrl');
+    const langSelectElem = document.getElementById('sttLangSelect');
+    const resultBox = document.getElementById('sttResult');
+    const badge = document.getElementById('detectedLangBadge');
+
+    const url = urlElem ? urlElem.value : 'http://localhost:8000/listen';
+    const langSelect = langSelectElem ? langSelectElem.value : 'auto';
+
+    updateStatus('Распознавание...', 'playing');
+    if (resultBox) resultBox.value = "Отправка аудио на сервер...";
+    if (badge) badge.classList.add('hidden');
+
+    try {
+        const formData = new FormData();
+
+        // Определяем расширение по реальному MIME-типу Blob
+        let fileName = "audio.wav";
+        if (sttAudioBlob.type.includes("webm")) {
+            fileName = "audio.webm";
+        } else if (sttAudioBlob.type.includes("ogg")) {
+            fileName = "audio.ogg";
+        }
+
+        formData.append("file", sttAudioBlob, fileName);
+        if (langSelect !== 'auto') {
+            formData.append("language", langSelect);
+        }
+
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData 
+        });
+
+        const data = await response.json();
+        if (response.ok && (data.status === "ok" || data.text)) {
+            if (resultBox) resultBox.value = data.text;
+            
+            if (data.language && badge) {
+                badge.textContent = `Lang: ${data.language}`;
+                badge.classList.remove('hidden');
+            }
+
+            addHistoryItem('sttHistoryList', 'API STT', data.language || langSelect, data.text);
+            updateStatus('Готов к работе', 'ready');
+            console.log("[EXIT] recognizeAudio | return: text recognized");
+        } else {
+            throw new Error(data.detail || data.message || `Ошибка сервера (${response.status})`);
+        }
+    } catch (error) {
+        console.error(`[EXIT ERROR] recognizeAudio | error: ${error.message}`);
+        if (resultBox) resultBox.value = `Ошибка: ${error.message}`;
+        updateStatus('Ошибка STT', 'error');
     }
 }
 
@@ -462,7 +546,16 @@ async function recognizeAudio() {
 
     try {
         const formData = new FormData();
-        formData.append("file", sttAudioBlob, "audio.wav");
+
+        // Определяем, это файл, выбранный пользователем, или запись с микрофона
+        let fileName = "audio.wav"; // по умолчанию для режима file
+        if (sttAudioBlob.type.includes("webm")) {
+            fileName = "audio.webm";
+        } else if (sttAudioBlob.type.includes("ogg")) {
+            fileName = "audio.ogg";
+        }
+
+        formData.append("file", sttAudioBlob, fileName);
         if (langSelect !== 'auto') {
             formData.append("language", langSelect);
         }
@@ -568,4 +661,196 @@ function clearHistory(listId) {
         historyList.innerHTML = '<p class="text-slate-500 text-center py-4">История пуста</p>';
     }
     console.log("[EXIT] clearHistory | return: success");
+}
+
+// Переключение интерфейса между файлом и микрофоном
+function setSttMode(mode) {
+    currentSttMode = mode;
+    currentWavBlob = null;
+    document.getElementById('sttPreviewContainer').classList.add('hidden');
+    
+    if (mode === 'file') {
+        document.getElementById('sttFileMode').classList.remove('hidden');
+        document.getElementById('sttMicMode').classList.add('hidden');
+        document.getElementById('btnModeFile').classList.replace('text-slate-400', 'text-slate-200');
+        document.getElementById('btnModeFile').classList.replace('hover:text-slate-200', 'bg-slate-700');
+        document.getElementById('btnModeMic').classList.replace('bg-slate-700', 'hover:text-slate-200');
+        document.getElementById('btnModeMic').classList.replace('text-slate-200', 'text-slate-400');
+    } else {
+        document.getElementById('sttFileMode').classList.add('hidden');
+        document.getElementById('sttMicMode').classList.remove('hidden');
+        document.getElementById('btnModeMic').classList.replace('text-slate-400', 'text-slate-200');
+        document.getElementById('btnModeMic').classList.replace('hover:text-slate-200', 'bg-slate-700');
+        document.getElementById('btnModeFile').classList.replace('bg-slate-700', 'hover:text-slate-200');
+        document.getElementById('btnModeFile').classList.replace('text-slate-200', 'text-slate-400');
+    }
+}
+
+// Обработка выбора файла (конвертация любого формата в WAV)
+async function handleSttFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('fileNameDisplay').textContent = file.name;
+    const arrayBuffer = await file.arrayBuffer();
+    await processAudioBuffer(arrayBuffer);
+}
+
+// Запись с микрофона
+async function toggleRecording() {
+    const btn = document.getElementById('btnRecord');
+    const status = document.getElementById('micStatusText');
+    
+    if (!isRecording) {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            audioChunks = [];
+            
+            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                const arrayBuffer = await blob.arrayBuffer();
+                await processAudioBuffer(arrayBuffer); // Конвертируем запись в WAV
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            mediaRecorder.start();
+            isRecording = true;
+            btn.classList.add('bg-rose-600', 'text-white', 'animate-pulse');
+            status.textContent = "Идет запись...";
+        } catch (err) {
+            console.error("Ошибка доступа к микрофону:", err);
+            status.textContent = "Ошибка микрофона";
+        }
+    } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        btn.classList.remove('bg-rose-600', 'text-white', 'animate-pulse');
+        status.textContent = "Запись завершена, конвертация в WAV...";
+    }
+}
+
+// Общая функция декодирования и конвертации в WAV
+async function processAudioBuffer(arrayBuffer) {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    try {
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        currentWavBlob = audioBufferToWav(audioBuffer);
+        
+        // Подключение предпрослушивания
+        const previewUrl = URL.createObjectURL(currentWavBlob);
+        const previewAudio = document.getElementById('sttPreviewAudio');
+        previewAudio.src = previewUrl;
+        document.getElementById('sttPreviewContainer').classList.remove('hidden');
+        
+        if (currentSttMode === 'mic') {
+            document.getElementById('micStatusText').textContent = "WAV готов к отправке";
+        }
+    } catch (e) {
+        console.error("Ошибка декодирования аудио:", e);
+        alert("Не удалось обработать аудиофайл.");
+    }
+}
+
+// Утилита для формирования структуры WAV файла
+function audioBufferToWav(buffer) {
+    const numOfChan = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const length = buffer.length * numOfChan * 2 + 44;
+    const outBuffer = new ArrayBuffer(length);
+    const view = new DataView(outBuffer);
+    let offset = 0;
+
+    function writeString(str) {
+        for (let i = 0; i < str.length; i++) {
+            view.setUint8(offset + i, str.charCodeAt(i));
+        }
+        offset += str.length;
+    }
+
+    writeString('RIFF');
+    view.setUint32(offset, length - 8, true); offset += 4;
+    writeString('WAVE');
+    writeString('fmt ');
+    view.setUint32(offset, 16, true); offset += 4; // Subchunk1Size (16 для PCM)
+    view.setUint16(offset, 1, true); offset += 2; // AudioFormat (1 для PCM)
+    view.setUint16(offset, numOfChan, true); offset += 2;
+    view.setUint32(offset, sampleRate, true); offset += 4;
+    view.setUint32(offset, sampleRate * 2 * numOfChan, true); offset += 4; // ByteRate
+    view.setUint16(offset, numOfChan * 2, true); offset += 2; // BlockAlign
+    view.setUint16(offset, 16, true); offset += 2; // BitsPerSample
+    writeString('data');
+    view.setUint32(offset, length - offset - 4, true); offset += 4;
+
+    // Запись PCM данных
+    const channelData = [];
+    for (let i = 0; i < numOfChan; i++) channelData.push(buffer.getChannelData(i));
+    
+    let sample = 0;
+    for (let i = 0; i < buffer.length; i++) {
+        for (let channel = 0; channel < numOfChan; channel++) {
+            sample = Math.max(-1, Math.min(1, channelData[channel][i]));
+            sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+            view.setInt16(offset, sample, true);
+            offset += 2;
+        }
+    }
+    return new Blob([outBuffer], { type: 'audio/wav' });
+}
+
+// Отправка WAV-байтов на сервер
+async function recognizeAudio() {
+    if (!currentWavBlob) {
+        alert("Сначала выберите файл или запишите аудио.");
+        return;
+    }
+
+    const url = document.getElementById('sttUrl').value;
+    const btn = document.querySelector('button[onclick="recognizeAudio()"]');
+    const originalText = btn.innerHTML;
+    
+    try {
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Распознавание...';
+        btn.disabled = true;
+
+        // Эндпоинт /listen ожидает сырые байты, отправляем Blob напрямую в body
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'audio/wav'
+            },
+            body: currentWavBlob
+        });
+
+        if (!response.ok) throw new Error(`Ошибка сервера: ${response.status}`);
+        
+        const result = await response.json();
+        document.getElementById('sttResult').value = result.text || "Текст не распознан";
+        
+        // Логирование успешного запроса в интерфейс
+        addToHistory(`Успешно. Текст: ${result.text.substring(0, 20)}...`);
+    } catch (error) {
+        console.error("Ошибка при отправке:", error);
+        document.getElementById('sttResult').value = `Ошибка: ${error.message}`;
+        addToHistory(`Ошибка отправки`, true);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function addToHistory(message, isError = false) {
+    const historyList = document.getElementById('sttHistoryList');
+    if (historyList.innerHTML.includes('История пуста')) historyList.innerHTML = '';
+    
+    const p = document.createElement('p');
+    p.className = `border-b border-slate-700/50 pb-1 ${isError ? 'text-rose-400' : 'text-emerald-400'}`;
+    const time = new Date().toLocaleTimeString();
+    p.innerHTML = `<span class="text-slate-500 mr-2">[${time}]</span> ${message}`;
+    historyList.prepend(p);
+}
+
+function clearHistory() {
+    document.getElementById('sttHistoryList').innerHTML = '<p class="text-slate-500 text-center py-4">История пуста</p>';
 }

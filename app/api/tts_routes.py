@@ -1,17 +1,18 @@
 import os
 import logging
 from fastapi import APIRouter, Request, Response, BackgroundTasks
-from app.services.audio import generate_audio_bytes, send_audio_to_esp32, resolve_language
+from app.services.tts import generate_audio_bytes, resolve_language
+from app.services.esp32 import send_audio_to_esp32
 from app.core.config import BASE_DIR
 
-# Уникальный логгер для роутов API
-logger = logging.getLogger("TTS_Routes")
-router = APIRouter()
+# Правило 1: Уникальный логгер для модуля
+logger = logging.getLogger("TTS_Route")
+tts_router = APIRouter()
 
 # ЭНДПОИНТ serve_tester_page УДАЛЕН.
 # Раздачей статики (html, css, js) теперь управляет StaticFiles в app/main.py
 
-@router.post("/speak_stream")
+@tts_router.post("/speak_stream")
 async def speak_stream(request: Request):
     """
     Эндпоинт для веб-интерфейса:
@@ -45,7 +46,7 @@ async def speak_stream(request: Request):
         logger.error(f"[EXIT ERROR] speak_stream | error: {e}")
         return res
 
-@router.post("/speak")
+@tts_router.post("/speak")
 async def speak_to_door(request: Request, background_tasks: BackgroundTasks):
     """
     Эндпоинт для логики умной двери:
@@ -71,7 +72,7 @@ async def speak_to_door(request: Request, background_tasks: BackgroundTasks):
         lang = resolve_language(speaker)
         audio_bytes, _ = generate_audio_bytes(text, lang)
         
-        # Фоновая отправка на дверной динамик
+        # Фоновая отправка на дверной динамик через сервис ESP32
         background_tasks.add_task(send_audio_to_esp32, audio_bytes)
         
         res = {"status": "ok", "text": text, "language_used": lang}

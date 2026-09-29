@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from app.core.config import config, BASE_DIR
-from app.api.routes import router
-from app.api.listen_routes import listen_router  # <-- Добавьте эту строку
+from app.api.tts_routes import tts_router
+from app.api.stt_routes import stt_router
 
 
 # Правило 1: Уникальный логгер для модуля
@@ -56,9 +56,9 @@ try:
         logger.warning(f"Папка frontend не найдена по пути: {frontend_path}")
 
     # Подключаем старые роуты (TTS)
-    app.include_router(router)
+    app.include_router(tts_router)
     # Подключаем новые роуты (STT - прослушивание гостя)
-    app.include_router(listen_router)
+    app.include_router(stt_router)    
 
     # Событие запуска FastAPI — гарантированно выполнится при старте сервера
     @app.on_event("startup")

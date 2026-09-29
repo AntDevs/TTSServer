@@ -3,16 +3,15 @@ import os
 import torch
 import torchaudio
 import numpy as np
-import requests
 import logging
 from transformers import pipeline
 from transformers.tokenization_utils_base import BatchEncoding
 from app.core.config import config
 
-# Уникальный логгер для модуля обработки аудио
-logger = logging.getLogger("TTS_Audio")
+# Правило 1: Уникальный логгер для модуля
+logger = logging.getLogger("TTS_Service")
 
-# Исправленный патч: не меняет dtype для индексов токенов (input_ids), оставляя их Long/Int
+# Исправленный патч: не меняет dtype для индексов токенов (input_ids), оставляя их Long/Int[cite: 17]
 old_batch_encoding_to = BatchEncoding.to
 def patched_batch_encoding_to(self, device=None, *, non_blocking=False, dtype=None, **kwargs):
     logger.info(f"[ENTER] patched_batch_encoding_to | params: device={device}, dtype={dtype}")
@@ -20,7 +19,7 @@ def patched_batch_encoding_to(self, device=None, *, non_blocking=False, dtype=No
         if dtype is not None:
             for k, v in self.items():
                 if hasattr(v, "to"):
-                    # Индексы токенов должны оставаться целочисленными (Long/Int), иначе ломается embedding слой
+                    # Индексы токенов должны оставаться целочисленными (Long/Int), иначе ломается embedding слой[cite: 17]
                     if k in ("input_ids", "token_type_ids") or (isinstance(v, torch.Tensor) and not torch.is_floating_point(v)):
                         if device is not None:
                             self[k] = v.to(device=device, non_blocking=non_blocking)
@@ -43,18 +42,18 @@ def patched_batch_encoding_to(self, device=None, *, non_blocking=False, dtype=No
 
 BatchEncoding.to = patched_batch_encoding_to
 
-# Запрещаем Hugging Face обращаться к интернету (полный оффлайн-режим)
+# Запрещаем Hugging Face обращаться к интернету (полный оффлайн-режим)[cite: 17]
 os.environ["TRANSFORMERS_OFFLINE"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 
-# 1. Проверка доступности и выполнения ядер на видеокарте GTX 1060 (CUDA)
+# 1. Проверка доступности и выполнения ядер на видеокарте GTX 1060 (CUDA)[cite: 17]
 if not torch.cuda.is_available():
     logger.critical("CUDA недоступна! Вычисления на процессоре вызовут задержку.")
     raise SystemError("CUDA недоступна! Вычисления на процессоре вызовут задержку.")
 
 device = -1
 try:
-    # Проверка возможности выполнения Cuda-ядер на GPU
+    # Проверка возможности выполнения Cuda-ядер на GPU[cite: 17]
     test_tensor = torch.zeros(1, device="cuda")
     _ = test_tensor + 1
     device = 0
@@ -63,7 +62,7 @@ except Exception as e:
     logger.warning(f"CUDA ядра недоступны для текущей версии PyTorch ({e}). Переключение на CPU (-1).")
     device = -1
 
-# 2. Загрузка языковых моделей Meta MMS из локального кэша
+# 2. Загрузка языковых моделей Meta MMS из локального кэша[cite: 17]
 tts_pipes = {}
 
 try:
@@ -90,7 +89,7 @@ def resolve_language(speaker_id: str) -> str:
         elif speaker_id_lower in ["english", "en", "en_us", "en_gb", "eng"]:
             result = "en"
         else:
-            result = "ru" # По умолчанию русский
+            result = "ru" # По умолчанию русский[cite: 17]
         logger.info(f"[EXIT] resolve_language | return: '{result}'")
         return result
     except Exception as e:
@@ -106,20 +105,20 @@ def generate_audio_bytes(text: str, lang: str):
             logger.error(f"Модель для языка '{lang}' не инициализирована.")
             raise ValueError(f"Модель для языка '{lang}' не инициализирована.")
         
-        # ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ
+        # ЛОГИРОВАНИЕ ДЛЯ ОТЛАДКИ[cite: 17]
         logger.info(f"Генерация | Язык: {lang} | Текст: '{text}'")
 
-        # Генерация через пайплайн Meta MMS
+        # Генерация через пайплайн Meta MMS[cite: 17]
         output = pipe(text)
         audio_data = output["audio"] 
-        sampling_rate = output["sampling_rate"] # Обычно 16000 Гц для MMS
+        sampling_rate = output["sampling_rate"] # Обычно 16000 Гц для MMS[cite: 17]
         
-        # ПРОВЕРКА НА ТИШИНУ
+        # ПРОВЕРКА НА ТИШИНУ[cite: 17]
         if audio_data.size == 0 or np.all(audio_data == 0):
             logger.warning(f"Модель {lang} сгенерировала тишину. Возможно, текст содержит недопустимые для языка символы.")
             raise ValueError(f"Модель {lang} сгенерировала тишину. Возможно, текст содержит недопустимые для языка символы.")
 
-        # Нормализация и перевод в 16-bit PCM WAV
+        # Нормализация и перевод в 16-bit PCM WAV[cite: 17]
         audio_int16 = np.clip(audio_data.squeeze() * 32767.0, -32768.0, 32767.0).astype(np.int16)
         
         buffer = io.BytesIO()
@@ -137,23 +136,4 @@ def generate_audio_bytes(text: str, lang: str):
         return result_bytes, sampling_rate
     except Exception as e:
         logger.error(f"[EXIT ERROR] generate_audio_bytes | error: {e}")
-        raise e
-
-def send_audio_to_esp32(audio_bytes):
-    """Асинхронная отправка готового аудиофайла на ESP32 у двери"""
-    bytes_len = len(audio_bytes) if audio_bytes else 0
-    logger.info(f"[ENTER] send_audio_to_esp32 | params: audio_bytes len={bytes_len}")
-    try:
-        response = requests.post(config.ESP32_SPEAKER_URL, data=audio_bytes, headers={'Content-Type': 'audio/wav'}, timeout=3)
-        if response.status_code == 200:
-            logger.info("Аудио успешно отправлено на ESP32.")
-            logger.info(f"[EXIT] send_audio_to_esp32 | return: status_code={response.status_code}")
-            return response.status_code
-        else:
-            logger.error(f"Ошибка при отправке на ESP32: статус {response.status_code}")
-            logger.info(f"[EXIT] send_audio_to_esp32 | return: status_code={response.status_code}")
-            return response.status_code
-    except Exception as e:
-        logger.error(f"Не удалось отправить звук на дверной динамик: {e}")
-        logger.error(f"[EXIT ERROR] send_audio_to_esp32 | error: {e}")
         raise e
