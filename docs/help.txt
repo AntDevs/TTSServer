@@ -1,5 +1,4 @@
-uvicorn tts_server:app --host 0.0.0.0 --port 8000
-uvicorn tts_server:app --host 0.0.0.0 --port 8000 --log-level debug
+uvicorn app.main:app --host 0.0.0.0 --port 8000 
 
  pip install --force-reinstall transformers torch torchaudio
  pip install "numpy<2" scipy soundfile --force-reinstall
@@ -20,6 +19,7 @@ sudo docker compose build --no-cache
 sudo docker compose up -d
 
 docker build --no-cache -t tts-door-server .
+docker build -t tts-door-server .
 
 
 sudo docker images
@@ -35,7 +35,8 @@ sudo docker run -d \
   -p 8000:8000 \
   --restart unless-stopped \
   tts-door-server
-  
+
+docker logs -f tts-server
 
   //********************* Настроить Docker для работы с GPU ****************/
 
