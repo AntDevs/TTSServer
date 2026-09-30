@@ -51,7 +51,7 @@ async def listen_guest(request: Request, background_tasks: BackgroundTasks):
 
         success_response = {
             "status": "ok", 
-            "text": recognized_text
+            "data": recognized_text
         }
         logger.info(f"[EXIT] listen_guest | return: {success_response}")
         return success_response

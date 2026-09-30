@@ -11,6 +11,10 @@ function setSttMode(mode) {
     currentWavBlob = null;
     document.getElementById('sttPreviewContainer').classList.add('hidden');
     
+    // Прячем поле с языком при смене режима
+    const langBadge = document.getElementById('detectedLangBadge');
+    if (langBadge) langBadge.classList.add('hidden');
+    
     if (mode === 'file') {
         document.getElementById('sttFileMode').classList.remove('hidden');
         document.getElementById('sttMicMode').classList.add('hidden');
@@ -135,6 +139,13 @@ function audioBufferToWav(buffer) {
     return new Blob([outBuffer], { type: 'audio/wav' });
 }
 
+// Словарь для красивого отображения названия языка (убрано 'auto': 'Неизвестно')
+const languageNames = {
+    'ru': 'Русский',
+    'en': 'English',
+    'he': 'Hebrew'
+};
+
 async function recognizeAudio() {
     if (!currentWavBlob) {
         alert("Сначала выберите файл или запишите аудио.");
@@ -144,10 +155,12 @@ async function recognizeAudio() {
     const url = document.getElementById('sttUrl').value;
     const btn = document.querySelector('button[onclick="recognizeAudio()"]');
     const originalText = btn.innerHTML;
+    const langBadge = document.getElementById('detectedLangBadge');
     
     try {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Распознавание...';
         btn.disabled = true;
+        if (langBadge) langBadge.classList.add('hidden'); // Скрываем поле перед новым запросом
 
         const response = await fetch(url, {
             method: 'POST',
@@ -158,9 +171,23 @@ async function recognizeAudio() {
         if (!response.ok) throw new Error(`Ошибка сервера: ${response.status}`);
         
         const result = await response.json();
-        document.getElementById('sttResult').value = result.text || "Текст не распознан";
         
-        addToHistorySTT(`Успешно. Текст: ${result.text.substring(0, 20)}...`);
+        // Распаковка нового формата { status: "ok", data: { text: "...", language: "..." } }
+        const responseData = result.data || result;
+        const recognizedText = responseData.text || "Текст не распознан";
+        const detectedLangCode = responseData.language; // Берем строго тот язык, который пришел
+
+        document.getElementById('sttResult').value = recognizedText;
+        
+        // Обработка языка и отображение имени. Если языка нет в словаре — выведется сам код (без "Неизвестно")
+        const detectedLangName = languageNames[detectedLangCode] || detectedLangCode;
+        
+        if (langBadge) {
+            langBadge.innerHTML = `<i class="fa-solid fa-language"></i> Язык: ${detectedLangName}`;
+            langBadge.classList.remove('hidden');
+        }
+        
+        addToHistorySTT(`Успешно [${detectedLangCode}]. Текст: ${recognizedText.substring(0, 20)}...`);
     } catch (error) {
         console.error("Ошибка при отправке:", error);
         document.getElementById('sttResult').value = `Ошибка: ${error.message}`;

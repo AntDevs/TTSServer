@@ -49,9 +49,9 @@
                 <label class="font-semibold text-slate-200 flex items-center gap-2">
                     <i class="fa-solid fa-align-left text-emerald-400"></i> Результат распознавания
                 </label>
-                <!-- Отображение языка -->
-                <span id="detectedLangBadge" class="hidden inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase">
-                    Lang: --
+                <!-- Обновленное поле для отображения полного имени языка -->
+                <span id="detectedLangBadge" class="hidden inline-flex items-center gap-2 px-3 py-1 rounded bg-slate-900 text-emerald-400 border border-emerald-500/30 text-sm font-medium">
+                    <i class="fa-solid fa-language"></i> Язык: --
                 </span>
             </div>
             <textarea id="sttResult" rows="5" readonly class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-emerald-300 focus:outline-none resize-y text-sm leading-relaxed" placeholder="Здесь появится расшифрованный текст..."></textarea>
