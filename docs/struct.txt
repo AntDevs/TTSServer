@@ -1,0 +1,33 @@
+TTSServer/
+├── .vscode/
+│   ├── launch.json
+│   └── settings.json
+├── app/
+│   ├── main.py
+│   ├── api/
+│   │   ├── stt_routes.py
+│   │   └── tts_routes.py
+│   ├── core/
+│   │   └── config.py
+│   ├── models/           # Пока пустая директория
+│   └── services/
+│       ├── esp32.py
+│       ├── stt.py
+│       └── tts.py
+├── docs/
+│   ├── help.txt
+│   └── struct.txt
+├── frontend/
+│   ├── main.html
+│   ├── main.js
+│   ├── script.js
+│   ├── stt.js
+│   ├── stt_panel.html
+│   ├── style.css
+│   ├── tts.js
+│   ├── tts_panel.html
+│   └── tts_tester.html
+├── .gitignore
+├── config.ini
+├── Dockerfile
+└── requirements.txt

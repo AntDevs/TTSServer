@@ -1,0 +1,96 @@
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fade-in">
+    <!-- Основные элементы управления (2 колонки) -->
+    <section class="lg:col-span-2 space-y-6">
+        
+        <!-- Выбор источника аудио -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-700/60 pb-3">
+                <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-microphone-lines text-emerald-400"></i> Ввод аудио (STT)
+                </h2>
+                <!-- Переключатель режима -->
+                <div class="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
+                    <button onclick="setSttMode('file')" id="btnModeFile" class="px-3 py-1 text-xs font-medium rounded bg-slate-700 text-slate-200 transition">Файл</button>
+                    <button onclick="setSttMode('mic')" id="btnModeMic" class="px-3 py-1 text-xs font-medium rounded text-slate-400 hover:text-slate-200 transition">Микрофон</button>
+                </div>
+            </div>
+            
+            <!-- Режим: Файл -->
+            <div id="sttFileMode" class="block">
+                <div class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-700 border-dashed rounded-lg bg-slate-900 hover:bg-slate-800/50 transition cursor-pointer relative overflow-hidden">
+                    <input type="file" id="sttFile" accept="audio/wav, audio/mp3, audio/ogg" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleSttFileSelect(event)">
+                    <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-500 mb-2"></i>
+                    <p id="fileNameDisplay" class="text-sm text-slate-400">Нажмите, чтобы выбрать аудиофайл</p>
+                </div>
+            </div>
+
+            <!-- Режим: Микрофон -->
+            <div id="sttMicMode" class="hidden flex flex-col items-center justify-center w-full h-32 border-2 border-slate-700 rounded-lg bg-slate-900">
+                <button onclick="toggleRecording()" id="btnRecord" class="w-16 h-16 rounded-full bg-rose-600/20 text-rose-500 border-2 border-rose-600 hover:bg-rose-600 hover:text-white flex items-center justify-center text-xl transition-all shadow-[0_0_15px_rgba(225,29,72,0.3)]">
+                    <i id="iconRecord" class="fa-solid fa-microphone"></i>
+                </button>
+                <p id="micStatusText" class="mt-3 text-xs text-slate-400 font-mono">Готов к записи</p>
+            </div>
+
+            <!-- Аудиоплеер для предпрослушивания загруженного/записанного аудио -->
+            <div class="mt-4 bg-slate-900 rounded-lg p-3 border border-slate-700 hidden" id="sttPreviewContainer">
+                <p class="text-xs text-slate-400 mb-2">Предпрослушивание:</p>
+                <audio id="sttPreviewAudio" controls class="w-full h-8"></audio>
+            </div>
+
+            <button onclick="recognizeAudio()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition">
+                <i class="fa-solid fa-microchip"></i> Отправить на распознавание
+            </button>
+        </div>
+
+        <!-- Результат -->
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between mb-2">
+                <label class="font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-align-left text-emerald-400"></i> Результат распознавания
+                </label>
+                <!-- Обновленное поле для отображения полного имени языка -->
+                <span id="detectedLangBadge" class="hidden inline-flex items-center gap-2 px-3 py-1 rounded bg-slate-900 text-emerald-400 border border-emerald-500/30 text-sm font-medium">
+                    <i class="fa-solid fa-language"></i> Язык: --
+                </span>
+            </div>
+            <textarea id="sttResult" rows="5" readonly class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-emerald-300 focus:outline-none resize-y text-sm leading-relaxed" placeholder="Здесь появится расшифрованный текст..."></textarea>
+        </div>
+    </section>
+
+    <!-- Боковая панель настроек -->
+    <section class="space-y-6">
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-4">
+            <h2 class="font-semibold text-slate-200 flex items-center gap-2 border-b border-slate-700/60 pb-3">
+                <i class="fa-solid fa-server text-emerald-400"></i> Настройки (STT)
+            </h2>
+            <div class="space-y-3">
+                <div>
+                    <label for="sttUrl" class="block text-xs font-medium text-slate-400 mb-1">URL Сервера STT</label>
+                    <input type="url" id="sttUrl" value="http://localhost:8000/listen" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono">
+                </div>
+                <div>
+                    <label for="sttLangSelect" class="block text-xs font-medium text-slate-400 mb-1.5">Язык для распознавания</label>
+                    <select id="sttLangSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="auto">Автоопределение (Auto)</option>
+                        <option value="ru">Русский (ru)</option>
+                        <option value="en">English (en)</option>
+                        <option value="he">Hebrew (he)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-5 shadow-xl space-y-3">
+            <div class="flex items-center justify-between border-b border-slate-700/60 pb-3">
+                <h2 class="font-semibold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Лог STT
+                </h2>
+                <button onclick="clearHistory('sttHistoryList')" class="text-xs text-slate-400 hover:text-rose-400 transition">Очистить</button>
+            </div>
+            <div id="sttHistoryList" class="space-y-2 max-h-56 overflow-y-auto pr-1 text-xs">
+                <p class="text-slate-500 text-center py-4">История пуста</p>
+            </div>
+        </div>
+    </section>
+</div>

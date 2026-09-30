@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligence Door - Панель Тестирования</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Подключение разделенных скриптов -->
+    <script src="main.js"></script>
+    <script src="tts.js"></script>
+    <script src="stt.js"></script>    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans flex flex-col">
+
+    <!-- Header -->
+    <header class="border-b border-slate-800 bg-slate-950/60 backdrop-blur sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-lg text-white">
+                    <i class="fa-solid me-0 fa-door-open text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">Intelligence Door Tester</h1>
+                    <p class="text-xs text-slate-400">Панель тестирования сервисов TTS и STT</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="statusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="statusText">Готов к работе</span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs Navigation -->
+    <div class="max-w-6xl mx-auto w-full px-4 pt-6 flex gap-2 border-b border-slate-800">
+        <button onclick="openTab('tts')" id="tab-btn-tts" class="tab-button active px-5 py-2.5 text-sm font-medium rounded-t-xl border border-slate-700 border-b-0 transition-all">
+            <i class="fa-solid fa-wave-square mr-2"></i> TTS (Синтез речи)
+        </button>
+        <button onclick="openTab('stt')" id="tab-btn-stt" class="tab-button px-5 py-2.5 text-sm font-medium rounded-t-xl border border-transparent border-b-0 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 transition-all">
+            <i class="fa-solid fa-ear-listen mr-2"></i> STT (Распознавание)
+        </button>
+    </div>
+
+    <!-- Dynamic Content Container -->
+    <main id="panel-content" class="max-w-6xl mx-auto px-4 py-6 flex-1 w-full">
+        <p class="text-slate-500 text-center mt-10"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Загрузка интерфейса...</p>
+    </main>
+
+    <!-- Global Audio Element for API responses -->
+    <audio id="audioPlayer" class="hidden"></audio>
+
+    <script src="script.js"></script>
+</body>
+</html>

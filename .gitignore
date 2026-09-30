@@ -1,0 +1,39 @@
+# Виртуальные окружения (самые частые названия)
+.venv/
+venv/
+ENV/
+env/
+
+# Кэш Python и скомпилированные файлы байт-кода
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Распределительные пакеты и сборка (если создаете библиотеку)
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+*.pyc
+
+# Настройки pip (например, логи ошибок)
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Системные файлы окружения (файлы с секретами/переменными)
+.env
+.venv
+poetry.lock
