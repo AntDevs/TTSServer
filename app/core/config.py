@@ -1,6 +1,7 @@
 import configparser
 import logging
 import os
+import json
 
 # Уникальный логгер для модуля конфигурации
 logger = logging.getLogger("TTS_Config")
@@ -27,10 +28,26 @@ class ProjectConfig:
             # Device
             self.ESP32_SPEAKER_URL = self.parser.get("Device", "ESP32_Speaker_URL", fallback="http://192.168.1.100/play")
             
-            # Models
-            self.MODEL_RU = self.parser.get("Models", "Russian", fallback="facebook/mms-tts-rus")
-            self.MODEL_EN = self.parser.get("Models", "English", fallback="facebook/mms-tts-eng")
-            self.MODEL_HE = self.parser.get("Models", "Hebrew", fallback="facebook/mms-tts-heb")
+            # Models - Выровнено по новым именам из config.ini
+            self.TTS_RUSSIAN = self.parser.get("Models", "TTS_Russian", fallback="facebook/mms-tts-rus")
+            self.TTS_ENGLISH = self.parser.get("Models", "TTS_English", fallback="facebook/mms-tts-eng")
+            self.TTS_HEBREW = self.parser.get("Models", "TTS_Hebrew", fallback="facebook/mms-tts-heb")
+            
+            # Сохраняем старые алиасы для совместимости с сервисом TTS (Правило сохранности кода)
+            self.MODEL_RU = self.TTS_RUSSIAN
+            self.MODEL_EN = self.TTS_ENGLISH
+            self.MODEL_HE = self.TTS_HEBREW
+            
+            # Конфигурация STT
+            self.STT_MODEL = self.parser.get("Models", "STT_Model", fallback="openai/whisper-small")
+            
+            # Парсинг JSON-строки словаря аргументов STT
+            try:
+                kwargs_str = self.parser.get("Models", "STT_Generate_Kwargs", fallback='{"task": "transcribe"}')
+                self.STT_GENERATE_KWARGS = json.loads(kwargs_str)
+            except Exception as json_e:
+                logger.error(f"[ERROR] ProjectConfig.__init__ | Failed to parse STT_Generate_Kwargs, using default: {json_e}")
+                self.STT_GENERATE_KWARGS = {"task": "transcribe"}
 
             # Utils
             self.NUMERIC_LOG_LEVEL = getattr(logging, self.LOG_LEVEL_STR, logging.INFO)

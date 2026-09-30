@@ -4,10 +4,12 @@ import tempfile
 import torch
 import torchaudio
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydub import AudioSegment
 from transformers import pipeline
+
 import app.services.esp32 as esp32
+from app.core.config import config
 
 # Правило 1: Уникальный логгер для модуля
 logger = logging.getLogger("STT_Service")
@@ -19,7 +21,7 @@ def init_stt_model():
         device = 0 if torch.cuda.is_available() else -1
         pipe = pipeline(
             "automatic-speech-recognition", 
-            model="openai/whisper-small", 
+            model=config.STT_MODEL,  # Динамическая загрузка из конфигурации
             device=device
         )
         logger.info("[EXIT] init_stt_model | return: Whisper model loaded successfully")
@@ -37,14 +39,24 @@ except Exception as e:
     logger.error(f"[EXIT ERROR] module stt.py | error: {e}")
     stt_pipe = None
 
-def transcribe_audio(audio_bytes: bytes) -> Dict[str, Any]:
+def transcribe_audio(audio_bytes: bytes, task: Optional[str] = None) -> Dict[str, Any]:
     """Распознавание текста и языка из сырых аудио байтов через временный файл"""
-    logger.info(f"[ENTER] transcribe_audio | params: audio_bytes_length={len(audio_bytes)}")
+    logger.info(f"[ENTER] transcribe_audio | params: audio_bytes_length={len(audio_bytes)}, task={task}")
     
     tmp_in_path = None
     try:
         if not stt_pipe:
             raise RuntimeError("STT Pipeline was not initialized properly.")
+
+        # Берем аргументы генерации из конфигурационного файла (.ini -> config.py)
+        gen_kwargs = config.STT_GENERATE_KWARGS.copy()
+        
+        # Переопределяем task, если он был передан явно из HTTP-вызова
+        if task:
+            gen_kwargs["task"] = task
+        # Если task не передан ни явно, ни в INI-файле, страхуемся значением по умолчанию
+        elif "task" not in gen_kwargs:
+            gen_kwargs["task"] = "transcribe"
 
         # Сохраняем байты на диск с расширением .ogg для корректного парсинга ffmpeg
         with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as tmp_in:
@@ -68,8 +80,12 @@ def transcribe_audio(audio_bytes: bytes) -> Dict[str, Any]:
         waveform, sample_rate = torchaudio.load(wav_buffer)
         audio_np = waveform.squeeze().numpy()
 
-        # Распознавание текста с запросом языка напрямую из модели
-        result = stt_pipe(audio_np, return_language=True)
+        # Распознавание текста с динамическим словарем generate_kwargs
+        result = stt_pipe(
+            audio_np, 
+            return_language=True,
+            generate_kwargs=gen_kwargs
+        )
         recognized_text = result.get("text", "").strip()
 
         # Извлечение языка (поддержка как прямого ключа, так и формата с chunks)
@@ -93,7 +109,8 @@ def transcribe_audio(audio_bytes: bytes) -> Dict[str, Any]:
 
         response_data = {
             "text": recognized_text,
-            "language": detected_lang
+            "language": detected_lang,
+            "task_used": gen_kwargs.get("task", "transcribe")
         }
 
         logger.info(f"[EXIT] transcribe_audio | return: {response_data}")
